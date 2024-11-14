@@ -1,17 +1,32 @@
+// Cargar variables de entorno desde .env
+require('dotenv').config();
+
 const express = require('express');
-const { create } = require('express-handlebars'); // Importamos 'create' de express-handlebars
+const { create } = require('express-handlebars');
 const { Server } = require('socket.io');
 const multer = require('multer');
 const path = require('path');
+const mongoose = require('mongoose'); // Importar mongoose para conectarse a MongoDB
+
+// Importar el modelo Product
+const Product = require('./models/Product');
 
 const app = express();
 const PORT = 8080;
 
 // Configuración de Handlebars
-const hbs = create({ extname: '.handlebars' }); // Crear instancia de Handlebars con extensión .handlebars
-app.engine('handlebars', hbs.engine); // Configurar Handlebars como el motor de plantillas
+const hbs = create({ extname: '.handlebars' });
+app.engine('handlebars', hbs.engine);
 app.set('view engine', 'handlebars');
-app.set('views', path.join(__dirname, 'views')); // Definir carpeta de vistas
+app.set('views', path.join(__dirname, 'views'));
+
+// Conectar a MongoDB usando Mongoose
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('Conectado a MongoDB'))
+.catch((error) => console.error('Error al conectar a MongoDB:', error));
 
 // Middleware para servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
@@ -48,6 +63,16 @@ app.get('/realtimeproducts', (req, res) => {
 
 app.post('/upload', upload.single('file'), (req, res) => {
   res.send('Archivo subido correctamente');
+});
+
+// Nueva Ruta para Obtener Productos desde MongoDB
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await Product.find(); // Buscar todos los productos en la colección de MongoDB
+    res.json(products); // Enviar la lista de productos como respuesta en formato JSON
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener productos' });
+  }
 });
 
 // Configuración del servidor HTTP
