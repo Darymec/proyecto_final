@@ -6,7 +6,7 @@ const { create } = require('express-handlebars');
 const { Server } = require('socket.io');
 const multer = require('multer');
 const path = require('path');
-const mongoose = require('mongoose'); // Importar mongoose para conectarse a MongoDB
+const mongoose = require('mongoose');
 
 // Importar el modelo Product
 const Product = require('./models/Product');
@@ -21,12 +21,16 @@ app.set('view engine', 'handlebars');
 app.set('views', path.join(__dirname, 'views'));
 
 // Conectar a MongoDB usando Mongoose
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Conectado a MongoDB'))
-.catch((error) => console.error('Error al conectar a MongoDB:', error));
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log('Conectado a MongoDB'))
+  .catch((error) => {
+    console.error('Error al conectar a MongoDB:', error);
+    process.exit(1); // Salir del proceso si no se puede conectar
+  });
 
 // Middleware para servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
@@ -41,12 +45,12 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
-  }
+  },
 });
 
 const upload = multer({ storage });
 
-// Lista de productos (de ejemplo)
+// Lista de productos iniciales (en memoria para ejemplo)
 let products = [
   { id: 1, name: 'Producto 1', price: 100 },
   { id: 2, name: 'Producto 2', price: 200 },
@@ -75,9 +79,19 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+// Ruta de prueba para verificar si el servidor responde correctamente
+app.get('/test', (req, res) => {
+  res.send('Ruta de prueba funcionando');
+});
+
 // Configuración del servidor HTTP
 const httpServer = app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
+
+// Manejo de errores en el servidor
+httpServer.on('error', (err) => {
+  console.error('Error en el servidor:', err);
 });
 
 // WebSockets con Socket.io
@@ -85,7 +99,7 @@ const io = new Server(httpServer);
 
 io.on('connection', (socket) => {
   console.log('Cliente conectado');
-  
+
   // Enviar lista de productos al cliente cuando se conecta
   socket.emit('productList', products);
 
